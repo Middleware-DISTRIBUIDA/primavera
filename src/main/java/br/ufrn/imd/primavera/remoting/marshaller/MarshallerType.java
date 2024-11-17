@@ -1,8 +1,8 @@
-package br.ufrn.imd.primavera.marshaller;
+package br.ufrn.imd.primavera.remoting.marshaller;
 
-import br.ufrn.imd.primavera.marshaller.impl.BinaryMarshaller;
-import br.ufrn.imd.primavera.marshaller.impl.JsonMarshaller;
-import br.ufrn.imd.primavera.marshaller.interfaces.Marshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.impl.BinaryMarshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.impl.JsonMarshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 
 public enum MarshallerType {
 	JSON("JSON Marshaller") {

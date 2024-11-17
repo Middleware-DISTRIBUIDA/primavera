@@ -1,6 +1,6 @@
-package br.ufrn.imd.primavera.marshaller.interfaces;
+package br.ufrn.imd.primavera.remoting.marshaller.interfaces;
 
-import br.ufrn.imd.primavera.marshaller.exceptions.SerializationException;
+import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
 
 public interface ObjectSerializer<T> {
 	byte[] serialize(T obj) throws SerializationException;

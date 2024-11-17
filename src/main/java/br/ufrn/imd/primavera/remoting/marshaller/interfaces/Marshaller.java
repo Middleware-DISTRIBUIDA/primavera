@@ -1,8 +1,8 @@
-package br.ufrn.imd.primavera.marshaller.interfaces;
+package br.ufrn.imd.primavera.remoting.marshaller.interfaces;
 
 import java.io.IOException;
 
-import br.ufrn.imd.primavera.marshaller.exceptions.SerializationException;
+import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
 
 public interface Marshaller<T> {
 	T marshal(Object obj) throws SerializationException;

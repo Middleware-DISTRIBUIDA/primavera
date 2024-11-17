@@ -1,4 +1,4 @@
-package br.ufrn.imd.primavera.marshaller.impl;
+package br.ufrn.imd.primavera.remoting.marshaller.impl;
 
 import java.io.IOException;
 
@@ -6,8 +6,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import br.ufrn.imd.primavera.marshaller.exceptions.SerializationException;
-import br.ufrn.imd.primavera.marshaller.interfaces.Marshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
+import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 
 public class JsonMarshaller implements Marshaller<String> {
 	private final ObjectMapper objectMapper;

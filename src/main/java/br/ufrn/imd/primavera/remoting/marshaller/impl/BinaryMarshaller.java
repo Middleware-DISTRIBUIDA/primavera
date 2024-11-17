@@ -1,4 +1,4 @@
-package br.ufrn.imd.primavera.marshaller.impl;
+package br.ufrn.imd.primavera.remoting.marshaller.impl;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -6,8 +6,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import br.ufrn.imd.primavera.marshaller.exceptions.SerializationException;
-import br.ufrn.imd.primavera.marshaller.interfaces.Marshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
+import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 
 public class BinaryMarshaller implements Marshaller<byte[]> {
 	@Override
