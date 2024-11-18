@@ -3,6 +3,8 @@ package br.ufrn.imd.primavera;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -10,11 +12,17 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import br.ufrn.imd.primavera.configuration.PrimaveraApplication;
 import br.ufrn.imd.primavera.configuration.PrimaveraConfiguration;
 import br.ufrn.imd.primavera.remoting.handlers.server.ServerHandler;
+import br.ufrn.imd.primavera.remoting.invoker.RequestDispatcher;
 
 public class PrimaveraRunner implements Runnable {
 
 	private PrimaveraConfiguration configuration;
 	private Class<? extends PrimaveraConfiguration> configurationTemplate;
+	private Set<String> packageControllers;
+
+	public PrimaveraRunner() {
+		this.packageControllers = new HashSet<>();
+	}
 
 	public PrimaveraRunner configureRunner(Class<?> primaryClass) {
 		if (!primaryClass.isAnnotationPresent((Class<? extends Annotation>) PrimaveraApplication.class)) {
@@ -44,6 +52,17 @@ public class PrimaveraRunner implements Runnable {
 			this.configuration = PrimaveraConfiguration.getConfig();
 			this.configurationTemplate = PrimaveraConfiguration.class;
 		}
+
+		return this;
+	}
+
+	public PrimaveraRunner configureControllers(String... packagesControllers) {
+
+		RequestDispatcher rd = RequestDispatcher.getInstance();
+		rd.loadMethods(packagesControllers);
+		rd.printMethods();
+
+		this.packageControllers.addAll(packageControllers);
 
 		return this;
 	}

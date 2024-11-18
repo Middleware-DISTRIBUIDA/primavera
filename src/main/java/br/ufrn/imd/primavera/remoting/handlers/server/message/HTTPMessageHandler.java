@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.StringTokenizer;
 
 import br.ufrn.imd.primavera.remoting.enums.HTTPStatus;
+import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.handlers.server.Response;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
@@ -32,7 +33,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 	@Override
 	public void run() {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-			String method;
+			String verb;
 			String path;
 
 			try {
@@ -43,7 +44,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 				}
 
 				StringTokenizer tokenizer = new StringTokenizer(headerLine);
-				method = tokenizer.nextToken().toUpperCase();
+				verb = tokenizer.nextToken().toUpperCase();
 				path = tokenizer.nextToken();
 
 			} catch (Exception e) {
@@ -55,7 +56,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			String body = readBody(in, headers);
 
-			processRequest(method, path, body);
+			processRequest(verb, path, body, headers);
 
 		} catch (IOException e) {
 			logAndRespondError("IO Error handling request", HTTPStatus.INTERNAL_SERVER_ERROR);
@@ -64,19 +65,22 @@ public final class HTTPMessageHandler extends MessageHandler {
 		}
 	}
 
-	private void processRequest(String method, String path, String body) {
+	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-
-			Response<?> response = new Response<>();
-
-			// CHAMA O INVOKER
-			// response = (Response<?>) requestDispatcher.dispatch(method, path, body);
-
+			Response<Object> response = new Response<>();
+			Object responseEntity = requestDispatcher.dispatchRequest(Verb.valueOf(verb), path, body, headers);
+			
+			response.setCode(HTTPStatus.OK);
+			response.setMessage(HTTPStatus.OK.getReasonPhrase());
+			response.setEntity(responseEntity);
+			
+			@SuppressWarnings("unchecked")
 			Marshaller<String> m = (Marshaller<String>) MarshallerFactory.getMarshaller(MarshallerType.JSON);
 
 			String bodyResponse = m.marshal(response.getEntity());
 			sendResponse(response.getStatus(), bodyResponse);
 		} catch (Exception e) {
+			e.printStackTrace();
 			logAndRespondError("Error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -125,7 +129,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 			out.writeBytes(responseBody);
 			out.flush();
 		} catch (IOException e) {
-			logger.error("Error sending response: " + e.getMessage());
+			logger.error("Error sending response: " + e.getMessage(), e);
 		}
 	}
 
@@ -134,7 +138,6 @@ public final class HTTPMessageHandler extends MessageHandler {
 	}
 
 	private void logAndRespondError(String logMessage, HTTPStatus status) {
-		logger.error(logMessage);
 		sendErrorResponse(status, logMessage);
 	}
 
