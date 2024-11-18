@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
-import br.ufrn.imd.primavera.marshaller.MarshallerFactory;
-import br.ufrn.imd.primavera.marshaller.MarshallerType;
-import br.ufrn.imd.primavera.marshaller.interfaces.Marshaller;
+import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
+import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
+import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 import br.ufrn.imd.primavera.tests.entities.RemoteRequest;
 
 public class MarshallerTest {
