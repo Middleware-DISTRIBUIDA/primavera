@@ -7,7 +7,7 @@ import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 public enum MarshallerType {
 	JSON("JSON Marshaller") {
 		@Override
-		protected Marshaller<?> createMarshaller() {
+		protected Marshaller<String> createMarshaller() {
 			return new JsonMarshaller();
 		}
 	},
