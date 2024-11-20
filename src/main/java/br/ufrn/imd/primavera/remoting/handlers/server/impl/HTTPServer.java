@@ -31,7 +31,7 @@ public class HTTPServer extends Server {
 				String requestName = String.format("%d%d", System.currentTimeMillis(), random.nextLong(1000, 9999));
 
 				Runnable tcpMsgHandler = new HTTPMessageHandler(requestName, socket);
-				
+ 
 				executorHandle.execute(tcpMsgHandler);
 
 				logger.info(String.format("RECEIVED REQUEST #%s", requestName));

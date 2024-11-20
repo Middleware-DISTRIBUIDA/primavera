@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.HTTPStatus;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.handlers.server.Response;
@@ -67,18 +68,24 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
+
 			Response<Object> response = new Response<>();
-			Object responseEntity = requestDispatcher.dispatchRequest(Verb.valueOf(verb), path, body, headers);
-			
-			response.setCode(HTTPStatus.OK);
-			response.setMessage(HTTPStatus.OK.getReasonPhrase());
-			response.setEntity(responseEntity);
-			
+
+			@SuppressWarnings("unchecked")
+			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
+					.dispatchRequest(Verb.valueOf(verb), path, body, headers);
+
+			Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
+
+			response.setCode(responseEntity.getStatus());
+			response.setMessage(responseEntity.getStatus().getReasonPhrase());
+			response.setEntity(responseEntity.getBody());
+
 			@SuppressWarnings("unchecked")
 			Marshaller<String> m = (Marshaller<String>) MarshallerFactory.getMarshaller(MarshallerType.JSON);
 
 			String bodyResponse = m.marshal(response.getEntity());
-			sendResponse(response.getStatus(), bodyResponse);
+			sendResponse(response.getStatus(), bodyResponse, responseHeaders);
 		} catch (Exception e) {
 			e.printStackTrace();
 			logAndRespondError("Error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
@@ -115,26 +122,41 @@ public final class HTTPMessageHandler extends MessageHandler {
 		return body.toString();
 	}
 
-	private void sendResponse(HTTPStatus status, String responseBody) {
+	private void sendResponse(HTTPStatus status, String responseBody, Map<String, String> additionalHeaders) {
 		try (DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
 			String statusLine = "HTTP/1.0 " + status.value() + " " + status.getReasonPhrase() + "\r\n";
-			String contentLengthHeader = "Content-Length: " + responseBody.length() + "\r\n";
+
+			Map<String, String> headers = new HashMap<>();
+			headers.put("Server", SERVER_HEADER.trim());
+			headers.put("Content-Type", CONTENT_TYPE_JSON.trim());
+			headers.put("Connection", CONNECTION_CLOSE.trim());
+			headers.put("Content-Length", String.valueOf(responseBody.length()));
+
+			if (additionalHeaders != null) {
+				for (Map.Entry<String, String> entry : additionalHeaders.entrySet()) {
+					headers.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			StringBuilder headersString = new StringBuilder();
+			for (Map.Entry<String, String> entry : headers.entrySet()) {
+				headersString.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+			}
 
 			out.writeBytes(statusLine);
-			out.writeBytes(SERVER_HEADER);
-			out.writeBytes(CONTENT_TYPE_JSON);
-			out.writeBytes(CONNECTION_CLOSE);
-			out.writeBytes(contentLengthHeader);
+			out.writeBytes(headersString.toString());
 			out.writeBytes("\r\n");
 			out.writeBytes(responseBody);
 			out.flush();
+
 		} catch (IOException e) {
+			e.printStackTrace();
 			logger.error("Error sending response: " + e.getMessage(), e);
 		}
 	}
 
 	private void sendErrorResponse(HTTPStatus status, String message) {
-		sendResponse(status, "{\"error\": \"" + message + "\"}");
+		sendResponse(status, "{\"error\": \"" + message + "\"}", null);
 	}
 
 	private void logAndRespondError(String logMessage, HTTPStatus status) {
