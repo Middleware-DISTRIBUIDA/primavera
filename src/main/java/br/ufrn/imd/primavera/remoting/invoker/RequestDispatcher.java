@@ -190,6 +190,7 @@ public class RequestDispatcher {
 
 	private Object[] resolveMethodArguments(Method method, String pathPattern, String path,
 			Map<String, String> queryParams, Map<String, String> headers, Object body) {
+		Class<?>[] paramClases = method.getParameterTypes();
 		Annotation[][] paramAnnotations = method.getParameterAnnotations();
 		Object[] args = new Object[paramAnnotations.length];
 
@@ -204,12 +205,15 @@ public class RequestDispatcher {
 			for (Annotation annotation : paramAnnotations[i]) {
 				if (annotation instanceof PathParam) {
 					String paramName = ((PathParam) annotation).value();
-					args[i] = extractPathParamValue(pathPattern, pathWithoutQuery, paramName);
+					Class<?> clazz = paramClases[i];
+					args[i] = extractPathParamValue(pathPattern, pathWithoutQuery, paramName, clazz);
 
 				} else if (annotation instanceof QueryParam) {
 					String paramName = ((QueryParam) annotation).value();
-					args[i] = queryParams.getOrDefault(paramName, null);
-
+					Class<?> clazz = paramClases[i];
+					String result = queryParams.getOrDefault(paramName, null);
+					args[i] = convertValue(result, clazz);
+					
 				} else if (annotation instanceof HeaderParam) {
 					String paramName = ((HeaderParam) annotation).value();
 					args[i] = headers.getOrDefault(paramName, null);
@@ -222,16 +226,39 @@ public class RequestDispatcher {
 		return args;
 	}
 
-	private Object extractPathParamValue(String pathPattern, String path, String paramName) {
+	private Object extractPathParamValue(String pathPattern, String path, String paramName, Class<?> clazz) {
 		String regexPattern = pathPattern.replaceAll("\\{([^/]+)\\}", "(?<$1>[^/]+)");
 		Pattern pattern = Pattern.compile(regexPattern);
 		Matcher matcher = pattern.matcher(path);
 
 		if (matcher.matches()) {
-			return matcher.group(paramName);
+			String value = matcher.group(paramName);
+			return convertValue(value, clazz);
 		}
 
 		return null;
+	}
+
+	private Object convertValue(String value, Class<?> clazz) {
+		if (clazz == String.class) {
+			return value;
+		} else if (clazz == Integer.class || clazz == int.class) {
+			return Integer.parseInt(value);
+		} else if (clazz == Long.class || clazz == long.class) {
+			return Long.parseLong(value);
+		} else if (clazz == Double.class || clazz == double.class) {
+			return Double.parseDouble(value);
+		} else if (clazz == Boolean.class || clazz == boolean.class) {
+			return Boolean.parseBoolean(value);
+		} else if (clazz == Float.class || clazz == float.class) {
+			return Float.parseFloat(value);
+		} else if (clazz == Short.class || clazz == short.class) {
+			return Short.parseShort(value);
+		} else if (clazz == Byte.class || clazz == byte.class) {
+			return Byte.parseByte(value);
+		} else {
+			throw new IllegalArgumentException("Unsupported type: " + clazz.getName());
+		}
 	}
 
 	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
