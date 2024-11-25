@@ -40,7 +40,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 			try {
 				String headerLine = in.readLine();
 				if (headerLine == null || headerLine.isEmpty()) {
-					sendErrorResponse(HTTPStatus.BAD_REQUEST, BAD_REQUEST_MESSAGE);
+//					sendErrorResponse(HTTPStatus.BAD_REQUEST, BAD_REQUEST_MESSAGE);
 					return;
 				}
 

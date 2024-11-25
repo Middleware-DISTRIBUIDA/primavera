@@ -6,8 +6,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,11 +40,12 @@ public class RequestDispatcher {
 
 	private Set<Method> methods;
 
-	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
+	private final Map<Class<?>, Queue<Object>> handlerPool; // Pool de instâncias de handlers
 	private final Invoker invoker;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
+		this.handlerPool = new HashMap<>();
 		this.invoker = Invoker.getInstance();
 	}
 
@@ -97,12 +100,12 @@ public class RequestDispatcher {
 	}
 
 	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers) {
-		for (Method method : methods) {
-			Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
-			Endpoint endpoint = method.getAnnotation(Endpoint.class);
-			String pathPattern = handlerClass.basePath() + endpoint.path();
-
-			if (pathPattern.startsWith("/") && pathPattern.length() == 0) {
+	    for (Method method : methods) {
+	        Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
+	        Endpoint endpoint = method.getAnnotation(Endpoint.class);
+	        String pathPattern = handlerClass.basePath() + endpoint.path();
+	        
+	        if (pathPattern.startsWith("/") && pathPattern.length() == 0) {
 				pathPattern = "";
 			} else if (pathPattern.startsWith("/") && pathPattern.length() >= 1) {
 				pathPattern = pathPattern.substring(1, pathPattern.length());
@@ -114,32 +117,40 @@ public class RequestDispatcher {
 				path = path.substring(1, path.length());
 			}
 
-			Map<String, String> queryParams = getQueryParams(path);
+	        Map<String, String> queryParams = getQueryParams(path);
 
-			if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
-				try {
+	        if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
+	        	Object handlerInstance = null;
+	            try {
+	                // Obtém uma nova instância do handler para esta requisição
+	                handlerInstance = getHandlerInstance(method.getDeclaringClass());
+	                Object deserializedBody = deserializeBodyIfRequired(method, body);
+	                Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers, deserializedBody);
 
-					Object handlerInstance = getHandlerInstance(method.getDeclaringClass());
+	                // Invoca o método usando o Invoker
+	                return invoker.invoke(method, handlerInstance, args);
 
-					Object deserializedBody = deserializeBodyIfRequired(method, body);
+	            } catch (InvocationTargetException e) {
+	                logger.error("Error invoking endpoint method: " + method.getName(), e.getCause());
+	            } catch (IllegalAccessException e) {
+	                logger.error("Error accessing endpoint method: " + method.getName(), e);
+	            } catch (IOException | SerializationException e) {
+	                logger.error("Error deserializing request body for method: " + method.getName(), e);
+	            } finally {
+	            	// Retorna a instância ao pool
+                    if (handlerInstance != null) {
+                        returnHandlerInstance(method.getDeclaringClass(), handlerInstance);
+                    }
+	            }
+	        }
+	    }
 
-					Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers,
-							deserializedBody);
-
-					return invoker.invoke(method, handlerInstance, args);
-
-				} catch (InvocationTargetException e) {
-					logger.error("Error invoking endpoint method: " + method.getName(), e.getCause());
-				} catch (IllegalAccessException | InstantiationException e) {
-					logger.error("Error accessing endpoint method: " + method.getName(), e);
-				} catch (IOException | SerializationException e) {
-					logger.error("Error deserializing request body for method: " + method.getName(), e);
-				}
-			}
-		}
-		logger.warn("No matching endpoint found for " + httpMethod + " " + path);
-		return null;
+	    // Caso nenhum endpoint seja encontrado
+	    logger.warn("No matching endpoint found for " + httpMethod + " " + path);
+	    return null;
 	}
+
+
 
 	private Object deserializeBodyIfRequired(Method method, String body) throws IOException, SerializationException {
 		int contFields = 0;
@@ -261,16 +272,33 @@ public class RequestDispatcher {
 		}
 	}
 
-	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
-		return sharedInstances.computeIfAbsent(handlerClass, clazz -> {
-			try {
-				return clazz.getDeclaredConstructor().newInstance();
-			} catch (Exception e) {
-				logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
-				return null;
-			}
-		});
-	}
+	private Object getHandlerInstance(Class<?> handlerClass) {
+        // Recupera o pool de instâncias para o tipo específico
+        Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
+
+        synchronized (pool) {
+            if (!pool.isEmpty()) {
+                return pool.poll();
+            }
+        }
+        // Cria uma nova instância se o pool estiver vazio
+        try {
+            return handlerClass.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
+            return null;
+        }
+    }
+	
+	private void returnHandlerInstance(Class<?> handlerClass, Object handlerInstance) {
+        // Adiciona a instância de volta ao pool
+        Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
+
+        synchronized (pool) {
+            pool.offer(handlerInstance);
+        }
+    }
+
 
 	private Map<String, String> getQueryParams(String url) {
 		Map<String, String> queryParams = new HashMap<>();
