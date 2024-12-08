@@ -96,7 +96,7 @@ public class RequestDispatcher {
 		System.out.println();
 	}
 
-	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers) {
+	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers, String context) {
 		for (Method method : methods) {
 			Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
 			Endpoint endpoint = method.getAnnotation(Endpoint.class);
@@ -126,7 +126,7 @@ public class RequestDispatcher {
 					Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers,
 							deserializedBody);
 
-					return invoker.invoke(method, handlerInstance, args);
+					return invoker.invoke(method, handlerInstance, context, args);
 
 				} catch (InvocationTargetException e) {
 					logger.error("Error invoking endpoint method: " + method.getName(), e.getCause());
