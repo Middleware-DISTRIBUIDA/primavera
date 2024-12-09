@@ -25,11 +25,11 @@ import br.ufrn.imd.primavera.remoting.annotations.Handler;
 import br.ufrn.imd.primavera.remoting.annotations.HeaderParam;
 import br.ufrn.imd.primavera.remoting.annotations.PathParam;
 import br.ufrn.imd.primavera.remoting.annotations.QueryParam;
-import br.ufrn.imd.primavera.remoting.entities.ObjectID;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
 import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
+import br.ufrn.imd.primavera.remoting.identification.ObjectIDRegistry;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
@@ -40,7 +40,7 @@ public class RequestDispatcher {
 	private static RequestDispatcher instance;
 
 	private Set<Method> methods;
-	private ObjectID objectsId;
+	private ObjectIDRegistry objectsRegistry;
 	private final Invoker invoker;
 
 	private RequestDispatcher() {
@@ -262,12 +262,12 @@ public class RequestDispatcher {
 	}
 
 	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
-		if (objectsId.containsId(handlerClass)) {
-			return objectsId.getId(handlerClass);
+		if (objectsRegistry.containsId(handlerClass)) {
+			return objectsRegistry.getId(handlerClass);
 		}
 		try {
 			Object newInstance = handlerClass.getDeclaredConstructor().newInstance();
-			objectsId.addId(handlerClass, newInstance);
+			objectsRegistry.addId(handlerClass, newInstance);
 			return newInstance;
 		} catch (Exception e) {
 			logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
