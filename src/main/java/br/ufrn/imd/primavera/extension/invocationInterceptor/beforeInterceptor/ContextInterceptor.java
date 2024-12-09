@@ -1,12 +1,13 @@
 package br.ufrn.imd.primavera.extension.invocationInterceptor.beforeInterceptor;
 
-import br.ufrn.imd.primavera.extension.annotations.BeforeInvocation;
+import br.ufrn.imd.primavera.extension.annotations.InvocationInterceptorClass;
+import br.ufrn.imd.primavera.extension.enums.InvocationType;
 import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptor;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@BeforeInvocation
+@InvocationInterceptorClass(InvocationType.BEFORE_INVOCATION)
 public class ContextInterceptor implements InvocationInterceptor {
 
     @Override
