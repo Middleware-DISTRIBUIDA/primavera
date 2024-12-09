@@ -25,6 +25,7 @@ import br.ufrn.imd.primavera.remoting.annotations.Handler;
 import br.ufrn.imd.primavera.remoting.annotations.HeaderParam;
 import br.ufrn.imd.primavera.remoting.annotations.PathParam;
 import br.ufrn.imd.primavera.remoting.annotations.QueryParam;
+import br.ufrn.imd.primavera.remoting.entities.ObjectID;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
@@ -39,8 +40,7 @@ public class RequestDispatcher {
 	private static RequestDispatcher instance;
 
 	private Set<Method> methods;
-
-	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
+	private ObjectID objectsId;
 	private final Invoker invoker;
 
 	private RequestDispatcher() {
@@ -262,14 +262,17 @@ public class RequestDispatcher {
 	}
 
 	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
-		return sharedInstances.computeIfAbsent(handlerClass, clazz -> {
-			try {
-				return clazz.getDeclaredConstructor().newInstance();
-			} catch (Exception e) {
-				logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
-				return null;
-			}
-		});
+		if (objectsId.containsId(handlerClass)) {
+			return objectsId.getId(handlerClass);
+		}
+		try {
+			Object newInstance = handlerClass.getDeclaredConstructor().newInstance();
+			objectsId.addId(handlerClass, newInstance);
+			return newInstance;
+		} catch (Exception e) {
+			logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
+			return null;
+		}
 	}
 
 	private Map<String, String> getQueryParams(String url) {
