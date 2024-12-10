@@ -1,20 +1,41 @@
 package br.ufrn.imd.primavera.extension.invocationInterceptor;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 public class InvocationInterceptorManager {
-    private List<InvocationInterceptor> interceptors;
+    private List<Class<?>> beforeInterceptors;
+    private List<Class<?>> afterInterceptors;
+    private static InvocationInterceptorManager instance;
 
-    public void addInterceptor(InvocationInterceptor interceptor) {
-        interceptors.add(interceptor);
+    public void addBeforeInterceptor(Class<?> interceptor) {
+        beforeInterceptors.add(interceptor);
     }
-    public List<InvocationInterceptor> getInterceptors() {
-        return interceptors;
+    public void addAfterInterceptor(Class<?> interceptor) {
+        afterInterceptors.add(interceptor);
+    }
+    public List<Class<?>> getBeforeInterceptorsInterceptors() {
+        return beforeInterceptors;
+    }
+    public List<Class<?>> getAfterInterceptorsInterceptors() {
+        return afterInterceptors;
     }
 
-    public void executeInterceptors(String request) {
-        for (InvocationInterceptor interceptor : interceptors) {
-            interceptor.execute(request);
+    public void executeBeforeInterceptors(String request) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        for (Class<?> interceptor : beforeInterceptors) {
+            interceptor.getMethod("execute", String.class).invoke(request);
         }
+    }
+    public void executeAfterInterceptors(String request) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        for (Class<?> interceptor : afterInterceptors) {
+            interceptor.getMethod("execute", String.class).invoke(request);
+        }
+    }
+
+    public static InvocationInterceptorManager getInstance() {
+        if (instance == null) {
+            instance = new InvocationInterceptorManager();
+        }
+        return instance;
     }
 }

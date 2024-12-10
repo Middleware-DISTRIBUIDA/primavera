@@ -1,7 +1,7 @@
 package br.ufrn.imd.primavera.remoting.invoker;
 
-import br.ufrn.imd.primavera.extension.annotations.InvocationInterceptorClass;
-import br.ufrn.imd.primavera.extension.enums.InvocationType;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.annotations.InvocationInterceptorClass;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.enums.InvocationType;
 import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptor;
 import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
 
@@ -22,20 +22,20 @@ public class Invoker {
 	}
 
 	public Object invoke(Method method, Object handlerInstance, String context, Object... args)
-			throws IllegalAccessException, InvocationTargetException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
 
-		for (InvocationInterceptor interceptor : invocationInterceptorManager.getInterceptors()) {
+		for (Class<?> interceptor : invocationInterceptorManager.getBeforeInterceptorsInterceptors()) {
 			if(interceptor.getClass().isAnnotationPresent(InvocationInterceptorClass.class) &&
 					interceptor.getClass().getAnnotation(InvocationInterceptorClass.class).value() ==
 							InvocationType.BEFORE_INVOCATION) {
 
-				interceptor.execute(context);
+				interceptor.getMethod("execute", String.class).invoke(context);
 			}
 		}
 
 		Object invokedMethod = method.invoke(handlerInstance, args);
 
-		for (InvocationInterceptor interceptor : invocationInterceptorManager.getInterceptors()) {
+		for (InvocationInterceptor interceptor : invocationInterceptorManager.getAfterInterceptorsInterceptors()) {
 			if(interceptor.getClass().isAnnotationPresent(InvocationInterceptorClass.class) &&
 					interceptor.getClass().getAnnotation(InvocationInterceptorClass.class).value() ==
 							InvocationType.AFTER_INVOCATION) {

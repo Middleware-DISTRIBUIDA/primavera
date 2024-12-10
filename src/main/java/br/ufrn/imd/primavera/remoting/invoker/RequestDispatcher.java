@@ -13,6 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import br.ufrn.imd.primavera.extension.invocationInterceptor.annotations.InvocationInterceptorClass;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.enums.InvocationType;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.reflections.Reflections;
@@ -35,7 +38,7 @@ import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 public class RequestDispatcher {
 	private static final Logger logger = LogManager.getLogger();
 	private static RequestDispatcher instance;
-
+	private InvocationInterceptorManager invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	private Set<Method> methods;
 
 	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
@@ -58,6 +61,16 @@ public class RequestDispatcher {
 				.addScanners(Scanners.TypesAnnotated, Scanners.MethodsAnnotated));
 
 		Set<Class<?>> handlerClasses = reflections.getTypesAnnotatedWith(Handler.class);
+		Set<Class<?>> invocationInterceptorClasses = reflections.getTypesAnnotatedWith(InvocationInterceptorClass.class);
+
+		for (Class<?> interceptorClass : invocationInterceptorClasses) {
+			InvocationInterceptorClass annotation = interceptorClass.getAnnotation(InvocationInterceptorClass.class);
+			if (annotation.value() == InvocationType.BEFORE_INVOCATION) {
+				invocationInterceptorManager.addBeforeInterceptor(interceptorClass);
+			} else if (annotation.value() == InvocationType.AFTER_INVOCATION) {
+				invocationInterceptorManager.addAfterInterceptor(interceptorClass);
+			}
+		}
 
 		this.methods = new HashSet<>();
 
@@ -126,7 +139,29 @@ public class RequestDispatcher {
 					Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers,
 							deserializedBody);
 
-					return invoker.invoke(method, handlerInstance, context, args);
+					for (Class<?> interceptor : invocationInterceptorManager.getBeforeInterceptorsInterceptors()) {
+						if(interceptor.isAnnotationPresent(InvocationInterceptorClass.class) &&
+								interceptor.getAnnotation(InvocationInterceptorClass.class).value() ==
+										InvocationType.BEFORE_INVOCATION) {
+
+							Method invokerMethod = interceptor.getMethod("execute", String.class);
+							invokerMethod.invoke(interceptor, body);
+						}
+					}
+
+					Object result = invoker.invoke(method, handlerInstance, context, args);
+
+					for (Class<?> interceptor : invocationInterceptorManager.getAfterInterceptorsInterceptors()) {
+						if(interceptor.isAnnotationPresent(InvocationInterceptorClass.class) &&
+								interceptor.getAnnotation(InvocationInterceptorClass.class).value() ==
+										InvocationType.AFTER_INVOCATION) {
+
+							Method invokerMethod = interceptor.getMethod("execute", String.class);
+							invokerMethod.invoke(interceptor, body);
+						}
+					}
+
+					return result;
 
 				} catch (InvocationTargetException e) {
 					logger.error("Error invoking endpoint method: " + method.getName(), e.getCause());
@@ -134,8 +169,10 @@ public class RequestDispatcher {
 					logger.error("Error accessing endpoint method: " + method.getName(), e);
 				} catch (IOException | SerializationException e) {
 					logger.error("Error deserializing request body for method: " + method.getName(), e);
-				}
-			}
+				} catch (NoSuchMethodException e) {
+                    logger.error("Error invoking interceptor method: " + e);
+                }
+            }
 		}
 		logger.warn("No matching endpoint found for " + httpMethod + " " + path);
 		return null;

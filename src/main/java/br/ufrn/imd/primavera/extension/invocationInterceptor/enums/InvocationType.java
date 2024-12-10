@@ -1,4 +1,4 @@
-package br.ufrn.imd.primavera.extension.enums;
+package br.ufrn.imd.primavera.extension.invocationInterceptor.enums;
 
 public enum InvocationType {
     BEFORE_INVOCATION,

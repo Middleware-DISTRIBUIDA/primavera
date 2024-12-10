@@ -1,7 +1,8 @@
 package br.ufrn.imd.primavera.configuration.network;
 
 public enum Protocol {
-	HTTP("HTTP");
+	HTTP("HTTP"),
+	UDP("UDP");
 
 	private final String description;
 

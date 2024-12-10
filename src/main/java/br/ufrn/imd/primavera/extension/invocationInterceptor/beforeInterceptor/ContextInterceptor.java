@@ -1,7 +1,7 @@
 package br.ufrn.imd.primavera.extension.invocationInterceptor.beforeInterceptor;
 
-import br.ufrn.imd.primavera.extension.annotations.InvocationInterceptorClass;
-import br.ufrn.imd.primavera.extension.enums.InvocationType;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.annotations.InvocationInterceptorClass;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.enums.InvocationType;
 import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptor;
 
 import java.util.HashMap;

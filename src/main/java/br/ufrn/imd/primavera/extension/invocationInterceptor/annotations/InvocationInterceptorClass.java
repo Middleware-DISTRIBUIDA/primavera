@@ -1,6 +1,6 @@
-package br.ufrn.imd.primavera.extension.annotations;
+package br.ufrn.imd.primavera.extension.invocationInterceptor.annotations;
 
-import br.ufrn.imd.primavera.extension.enums.InvocationType;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.enums.InvocationType;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
