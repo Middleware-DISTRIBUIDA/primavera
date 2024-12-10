@@ -23,26 +23,7 @@ public class Invoker {
 
 	public Object invoke(Method method, Object handlerInstance, String context, Object... args)
             throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-
-		for (Class<?> interceptor : invocationInterceptorManager.getBeforeInterceptorsInterceptors()) {
-			if(interceptor.getClass().isAnnotationPresent(InvocationInterceptorClass.class) &&
-					interceptor.getClass().getAnnotation(InvocationInterceptorClass.class).value() ==
-							InvocationType.BEFORE_INVOCATION) {
-
-				interceptor.getMethod("execute", String.class).invoke(context);
-			}
-		}
-
-		Object invokedMethod = method.invoke(handlerInstance, args);
-
-		for (InvocationInterceptor interceptor : invocationInterceptorManager.getAfterInterceptorsInterceptors()) {
-			if(interceptor.getClass().isAnnotationPresent(InvocationInterceptorClass.class) &&
-					interceptor.getClass().getAnnotation(InvocationInterceptorClass.class).value() ==
-							InvocationType.AFTER_INVOCATION) {
-				interceptor.execute(context);
-			}
-		}
-
-		return invokedMethod;
+		
+		return method.invoke(handlerInstance, args);
 	}
 }
