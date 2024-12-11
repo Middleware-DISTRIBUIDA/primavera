@@ -37,6 +37,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 			String verb;
 			String path;
+			String context = "";
 
 			try {
 				String headerLine = in.readLine();
@@ -56,9 +57,14 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			Map<String, String> headers = parseHeaders(in);
 
+			if(headers.containsKey("Context")) {
+				context = headers.get("Context");
+				headers.remove("Context");
+			}
+
 			String body = readBody(in, headers);
 
-			processRequest(verb, path, body, headers);
+			processRequest(verb, path, body, headers, context);
 
 		} catch (IOException e) {
 			logAndRespondError("IO Error handling request", HTTPStatus.INTERNAL_SERVER_ERROR);
@@ -67,13 +73,13 @@ public final class HTTPMessageHandler extends MessageHandler {
 		}
 	}
 
-	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
+	private void processRequest(String verb, String path, String body, Map<String, String> headers, String context) {
 		try {
 
 			Response<Object> response = new Response<>();
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
-					.dispatchRequest(Verb.valueOf(verb), path, body, headers);
+					.dispatchRequest(Verb.valueOf(verb), path, body, headers, context);
 
 			Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
 
