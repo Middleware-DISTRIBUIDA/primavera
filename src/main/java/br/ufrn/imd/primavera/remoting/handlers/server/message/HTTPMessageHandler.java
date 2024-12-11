@@ -12,6 +12,8 @@ import java.util.StringTokenizer;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.HTTPStatus;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
+import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
+import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
 import br.ufrn.imd.primavera.remoting.handlers.server.Response;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
@@ -38,7 +40,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			try {
 				String headerLine = in.readLine();
-				
+
 				if (headerLine == null || headerLine.isEmpty()) {
 					return;
 				}
@@ -67,7 +69,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-			
+
 			Response<Object> response = new Response<>();
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
@@ -84,9 +86,15 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			String bodyResponse = m.marshal(response.getEntity());
 			sendResponse(response.getStatus(), bodyResponse, responseHeaders);
+		} catch (ApplicationLogicErrorException e) {
+			logger.warn("Application logic error: " + e.getMessage(), e);
+			logAndRespondError("Application logic error: " + e.getMessage(), HTTPStatus.BAD_REQUEST);
+		} catch (InfrastructureErrorException e) {
+			logger.error("Infrastructure error: " + e.getMessage(), e);
+			logAndRespondError("Infrastructure error: " + e.getMessage(), HTTPStatus.INTERNAL_SERVER_ERROR);
 		} catch (Exception e) {
-			e.printStackTrace();
-			logAndRespondError("Error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
+			logger.error("Unexpected error: " + e.getMessage(), e);
+			logAndRespondError("Unexpected error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 

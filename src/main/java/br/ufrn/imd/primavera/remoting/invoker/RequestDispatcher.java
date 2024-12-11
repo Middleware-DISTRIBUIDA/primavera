@@ -27,6 +27,8 @@ import br.ufrn.imd.primavera.remoting.annotations.PathParam;
 import br.ufrn.imd.primavera.remoting.annotations.QueryParam;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
+import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
+import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
@@ -96,7 +98,8 @@ public class RequestDispatcher {
 		System.out.println();
 	}
 
-	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers) {
+	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers)
+			throws InfrastructureErrorException, ApplicationLogicErrorException {
 		for (Method method : methods) {
 			Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
 			Endpoint endpoint = method.getAnnotation(Endpoint.class);
@@ -128,17 +131,14 @@ public class RequestDispatcher {
 
 					return invoker.invoke(method, handlerInstance, args);
 
-				} catch (InvocationTargetException e) {
-					logger.error("Error invoking endpoint method: " + method.getName(), e.getCause());
-				} catch (IllegalAccessException | InstantiationException e) {
-					logger.error("Error accessing endpoint method: " + method.getName(), e);
-				} catch (IOException | SerializationException e) {
-					logger.error("Error deserializing request body for method: " + method.getName(), e);
+				} catch (InvocationTargetException | InstantiationException e) {
+					throw new ApplicationLogicErrorException("Error in application logic", e.getCause());
+				} catch (IOException | IllegalAccessException | SerializationException e) {
+					throw new InfrastructureErrorException("Error accessing handler", e);
 				}
 			}
 		}
-		logger.warn("No matching endpoint found for " + httpMethod + " " + path);
-		return null;
+		throw new InfrastructureErrorException("No matching endpoint found for " + httpMethod + " " + path);
 	}
 
 	private Object deserializeBodyIfRequired(Method method, String body) throws IOException, SerializationException {
@@ -213,7 +213,7 @@ public class RequestDispatcher {
 					Class<?> clazz = paramClases[i];
 					String result = queryParams.getOrDefault(paramName, null);
 					args[i] = convertValue(result, clazz);
-					
+
 				} else if (annotation instanceof HeaderParam) {
 					String paramName = ((HeaderParam) annotation).value();
 					args[i] = headers.getOrDefault(paramName, null);
