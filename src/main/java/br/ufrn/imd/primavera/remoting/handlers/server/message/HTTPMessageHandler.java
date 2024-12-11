@@ -79,7 +79,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 			Response<Object> response = new Response<>();
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
-					.dispatchRequest(Verb.valueOf(verb), path, body, headers, context);
+					.dispatchRequest(Verb.valueOf(verb), path, body, headers);
 
 			Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
 
