@@ -22,7 +22,6 @@ public final class HTTPMessageHandler extends MessageHandler {
 	private static final String SERVER_HEADER = "Server: WebServer\r\n";
 	private static final String CONTENT_TYPE_JSON = "Content-Type: application/json\r\n";
 	private static final String CONNECTION_CLOSE = "Connection: close\r\n";
-	private static final String BAD_REQUEST_MESSAGE = "Bad Request";
 
 	private final Socket socket;
 
@@ -39,8 +38,8 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			try {
 				String headerLine = in.readLine();
+				
 				if (headerLine == null || headerLine.isEmpty()) {
-					sendErrorResponse(HTTPStatus.BAD_REQUEST, BAD_REQUEST_MESSAGE);
 					return;
 				}
 
@@ -68,9 +67,8 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-
+			
 			Response<Object> response = new Response<>();
-
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
 					.dispatchRequest(Verb.valueOf(verb), path, body, headers);
