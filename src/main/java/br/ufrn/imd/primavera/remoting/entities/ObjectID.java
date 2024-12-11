@@ -10,5 +10,4 @@ public class ObjectID {
     public Class<?> getClazz() {
         return this.clazz;
     }
-
 }

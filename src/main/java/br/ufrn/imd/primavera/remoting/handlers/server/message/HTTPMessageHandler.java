@@ -94,7 +94,6 @@ public final class HTTPMessageHandler extends MessageHandler {
 			if (remoteObject instanceof RequestDispatcher) {
 				RequestDispatcher requestDispatcher = (RequestDispatcher) remoteObject;
 
-				// Continua o processamento utilizando o requestDispatcher remoto
 				Response<Object> response = new Response<>();
 
 				@SuppressWarnings("unchecked")

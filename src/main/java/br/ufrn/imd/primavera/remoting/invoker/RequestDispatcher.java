@@ -30,6 +30,7 @@ import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
 import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
 import br.ufrn.imd.primavera.remoting.identification.ObjectIDRegistry;
+import br.ufrn.imd.primavera.remoting.identification.impl.LookupServiceImpl;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
@@ -42,6 +43,7 @@ public class RequestDispatcher {
 	private Set<Method> methods;
 	private ObjectIDRegistry objectsRegistry;
 	private final Invoker invoker;
+	private LookupServiceImpl lookup;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
@@ -64,6 +66,7 @@ public class RequestDispatcher {
 		this.methods = new HashSet<>();
 
 		for (Class<?> handlerClass : handlerClasses) {
+
 			for (Method method : handlerClass.getDeclaredMethods()) {
 				if (method.isAnnotationPresent(Endpoint.class)) {
 					validateReturnType(method);

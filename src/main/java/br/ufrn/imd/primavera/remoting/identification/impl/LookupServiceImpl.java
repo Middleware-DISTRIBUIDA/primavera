@@ -12,56 +12,72 @@ import br.ufrn.imd.primavera.remoting.identification.LookupService;
 
 public class LookupServiceImpl extends UnicastRemoteObject implements LookupService {
 
-    // Mapa que armazena os objetos registrados, com o path como chave
+    private static LookupServiceImpl instance;
     private Map<String, AbsoluteObjectReference> registry;
 
-    public LookupServiceImpl() throws RemoteException {
+    private LookupServiceImpl() throws RemoteException {
         super();
         registry = new HashMap<>();
+        System.out.println("[INFO] LookupServiceImpl inicializado com sucesso.");
+    }
+
+    public static synchronized LookupServiceImpl getInstance() throws RemoteException {
+        if (instance == null) {
+            instance = new LookupServiceImpl();
+        }
+        return instance;
     }
 
     @Override
     public void registerObject(String path, AbsoluteObjectReference aor) throws RemoteException {
-        // Registra o objeto usando o path como chave
+        System.out.println("[INFO] Tentando registrar objeto...");
+        System.out.println("[DEBUG] Path: " + path);
+        System.out.println("[DEBUG] AOR: " + aor);
+
         registry.put(path, aor);
-        System.out.println("Objeto registrado com path: " + path + " -> " + aor);
+        System.out.println("[SUCCESS] Objeto registrado com path: " + path + " -> " + aor);
     }
 
     @Override
     public AbsoluteObjectReference lookup(String path) throws RemoteException {
-        // Realiza o lookup do objeto com base no path
+        System.out.println("[INFO] Realizando lookup...");
+        System.out.println("[DEBUG] Path: " + path);
+
         AbsoluteObjectReference aor = registry.get(path);
         if (aor != null) {
-            System.out.println("AOR encontrado para o path: " + path + " -> " + aor);
+            System.out.println("[SUCCESS] AOR encontrado para o path: " + path + " -> " + aor);
         } else {
-            System.out.println("AOR não encontrado para o path: " + path);
+            System.out.println("[WARN] AOR não encontrado para o path: " + path);
         }
         return aor;
     }
 
     @Override
     public Remote resolveObject(ObjectID objectId) throws RemoteException {
-        // Obtém o nome da classe do ObjectID como chave
-        String key = objectId.getClazz().getName();
+        System.out.println("[INFO] Resolvendo objeto...");
+        System.out.println("[DEBUG] ObjectID: " + objectId);
 
-        // Verifica se o mapa contém o ObjectID como chave
+        String key = objectId.getClazz().getName();
+        System.out.println("[DEBUG] Chave derivada do ObjectID: " + key);
+
         if (!registry.containsKey(key)) {
+            System.out.println("[ERROR] ObjectID não encontrado no registro: " + objectId);
             throw new RemoteException("ObjectID não encontrado: " + objectId);
         }
 
-        // Obtém a referência de objeto absoluto
         AbsoluteObjectReference aor = registry.get(key);
         if (aor == null) {
+            System.out.println("[ERROR] Referência de objeto absoluto é nula para o ObjectID: " + objectId);
             throw new RemoteException("Referência de objeto absoluto é nula para o ObjectID: " + objectId);
         }
 
-        // Retorna o objeto remoto associado ao AOR
         Object remoteObject = aor.getObjectId();
         if (!(remoteObject instanceof Remote)) {
+            System.out.println("[ERROR] O objeto associado ao ObjectID não implementa Remote: " + objectId);
             throw new RemoteException("O objeto associado ao ObjectID não implementa Remote: " + objectId);
         }
 
+        System.out.println("[SUCCESS] Objeto remoto resolvido com sucesso: " + remoteObject);
         return (Remote) remoteObject;
     }
-
 }
