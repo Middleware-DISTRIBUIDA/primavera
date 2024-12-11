@@ -21,7 +21,7 @@ public class Invoker {
 		return instance;
 	}
 
-	public Object invoke(Method method, Object handlerInstance, String context, Object... args)
+	public Object invoke(Method method, Object handlerInstance, Object... args)
             throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
 		
 		return method.invoke(handlerInstance, args);

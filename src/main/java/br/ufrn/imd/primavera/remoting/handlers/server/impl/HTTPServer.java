@@ -1,6 +1,5 @@
 package br.ufrn.imd.primavera.remoting.handlers.server.impl;
 
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
@@ -31,22 +30,18 @@ public class HTTPServer extends Server {
 				String requestName = String.format("%d%d", System.currentTimeMillis(), random.nextLong(1000, 9999));
 
 				Runnable tcpMsgHandler = new HTTPMessageHandler(requestName, socket);
- 
+
 				executorHandle.execute(tcpMsgHandler);
 
 				logger.info(String.format("RECEIVED REQUEST #%s", requestName));
 				logger.info(String.format("REQUEST #%s FROM %s:%d scheduled", requestName,
 						socket.getInetAddress().toString(), socket.getPort()));
 			}
-		} catch (IOException e) {
-			logger.error(e);
-			e.printStackTrace();
-		} catch (java.lang.IllegalArgumentException e) {
-			logger.error(e);
-			e.printStackTrace();
+		} catch (Exception e) {
+			logger.error("Critical server error", e);
+		} finally {
+			logger.info("HTTP SERVER TERMINATING...");
 		}
-
-		logger.info("HTTP SERVER TERMINATING...");
 	}
 
 }
