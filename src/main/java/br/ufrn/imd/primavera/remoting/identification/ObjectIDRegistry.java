@@ -47,5 +47,13 @@ public class ObjectIDRegistry {
 
     public <T> boolean containsObjectID(Class<T> clazz) {
         return registeredIds.contains(new ObjectID(clazz)); // Verifica se o ObjectID está registrado
+    } // Função para pegar ou criar um novo ObjectID se não estiver registrado
+
+    public <T> ObjectID getOrCreateObjectID(Class<T> clazz) {
+        ObjectID objectId = new ObjectID(clazz);
+        if (!registeredIds.contains(objectId)) {
+            registeredIds.add(objectId); // Registra o novo ObjectID
+        }
+        return objectId; // Retorna o ObjectID registrado ou recém-criado
     }
 }

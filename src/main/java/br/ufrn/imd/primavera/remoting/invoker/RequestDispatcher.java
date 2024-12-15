@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
 
+import br.ufrn.imd.primavera.configuration.PrimaveraConfiguration;
 import br.ufrn.imd.primavera.remoting.annotations.BodyParam;
 import br.ufrn.imd.primavera.remoting.annotations.Endpoint;
 import br.ufrn.imd.primavera.remoting.annotations.Handler;
@@ -30,6 +32,7 @@ import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
 import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
 import br.ufrn.imd.primavera.remoting.identification.ObjectIDRegistry;
+import br.ufrn.imd.primavera.remoting.identification.impl.LookupServiceImpl;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
@@ -42,6 +45,7 @@ public class RequestDispatcher {
 	private Set<Method> methods;
 	private ObjectIDRegistry objectsRegistry;
 	private final Invoker invoker;
+	private LookupServiceImpl lookup;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
@@ -55,7 +59,8 @@ public class RequestDispatcher {
 		return instance;
 	}
 
-	public void loadMethods(String... packagesName) {
+	public void loadMethods(PrimaveraConfiguration configuration, String... packagesName)
+			throws RemoteException, InstantiationException, IllegalAccessException {
 		Reflections reflections = new Reflections(new ConfigurationBuilder().forPackages(packagesName)
 				.addScanners(Scanners.TypesAnnotated, Scanners.MethodsAnnotated));
 
@@ -64,8 +69,13 @@ public class RequestDispatcher {
 		this.methods = new HashSet<>();
 
 		for (Class<?> handlerClass : handlerClasses) {
-
+			Handler handlerAnnotation = handlerClass.getAnnotation(Handler.class);
+			String path = handlerAnnotation.basePath();
+			String protocol = configuration.getProtocol().toString();
+			int port = configuration.getPort();
+			lookup.registerObject(path, "localhost", port, handlerClass, getHandlerInstance(handlerClass));
 			for (Method method : handlerClass.getDeclaredMethods()) {
+
 				if (method.isAnnotationPresent(Endpoint.class)) {
 					validateReturnType(method);
 					this.methods.add(method);
@@ -122,7 +132,6 @@ public class RequestDispatcher {
 
 			if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
 				try {
-
 					Object handlerInstance = getHandlerInstance(method.getDeclaringClass());
 
 					Object deserializedBody = deserializeBodyIfRequired(method, body);

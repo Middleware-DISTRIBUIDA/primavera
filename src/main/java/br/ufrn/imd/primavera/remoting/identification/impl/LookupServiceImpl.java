@@ -9,11 +9,13 @@ import java.util.Map;
 import br.ufrn.imd.primavera.remoting.entities.AbsoluteObjectReference;
 import br.ufrn.imd.primavera.remoting.entities.ObjectID;
 import br.ufrn.imd.primavera.remoting.identification.LookupService;
+import br.ufrn.imd.primavera.remoting.identification.RemoteObjectRegistry;
 
 public class LookupServiceImpl extends UnicastRemoteObject implements LookupService {
 
     private static LookupServiceImpl instance;
     private Map<String, AbsoluteObjectReference> registry;
+    private RemoteObjectRegistry aors;
 
     private LookupServiceImpl() throws RemoteException {
         super();
@@ -35,6 +37,21 @@ public class LookupServiceImpl extends UnicastRemoteObject implements LookupServ
         System.out.println("[DEBUG] AOR: " + aor);
 
         registry.put(path, aor);
+        System.out.println("[SUCCESS] Objeto registrado com path: " + path + " -> " + aor);
+    }
+
+    public void registerObject(String path, String host, int port, Class<?> clazz, Object newInstance)
+            throws RemoteException {
+        System.out.println("[INFO] Tentando registrar objeto...");
+        System.out.println("[DEBUG] Path: " + path);
+        System.out.println("[DEBUG] Host: " + host + " | Port: " + port);
+
+        // Cria ou obtém o AOR do RemoteObjectRegistry
+        AbsoluteObjectReference aor = aors.getOrRegisterAOR(clazz, newInstance, host, port);
+
+        // Registra o AOR no registry com o path
+        registry.put(path, aor);
+
         System.out.println("[SUCCESS] Objeto registrado com path: " + path + " -> " + aor);
     }
 

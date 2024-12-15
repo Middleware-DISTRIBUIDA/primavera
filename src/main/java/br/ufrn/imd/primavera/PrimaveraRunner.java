@@ -3,6 +3,7 @@ package br.ufrn.imd.primavera;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.rmi.RemoteException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -56,10 +57,11 @@ public class PrimaveraRunner implements Runnable {
 		return this;
 	}
 
-	public PrimaveraRunner configureControllers(String... packagesControllers) {
+	public PrimaveraRunner configureControllers(String... packagesControllers)
+			throws RemoteException, IllegalAccessException, InstantiationException {
 
 		RequestDispatcher rd = RequestDispatcher.getInstance();
-		rd.loadMethods(packagesControllers);
+		rd.loadMethods(configuration, packagesControllers);
 		rd.printMethods();
 
 		this.packageControllers.addAll(packageControllers);

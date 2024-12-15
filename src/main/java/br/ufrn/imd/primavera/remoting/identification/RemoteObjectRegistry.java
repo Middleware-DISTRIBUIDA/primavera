@@ -47,6 +47,24 @@ public class RemoteObjectRegistry {
         System.out.println("Registrado: " + objectId);
 
         return newAOR;
+    } // Função para verificar se o AOR já está cadastrado ou se precisa ser
+      // registrado
+
+    public AbsoluteObjectReference getOrRegisterAOR(Class<?> clazz, Object newInstance, String host, int port) {
+        ObjectID objectId = new ObjectID(clazz);
+
+        // Verifica se já existe um AOR correspondente
+        for (AbsoluteObjectReference aor : aors) {
+            if (aor.getObjectId().equals(objectId) &&
+                    aor.getHost().equals(host) &&
+                    aor.getPort() == port) {
+                System.out.println("AOR já registrado: " + aor);
+                return aor;
+            }
+        }
+        AbsoluteObjectReference aor = register(clazz, newInstance, host, port);
+        aors.add(aor);
+        return aor;
     }
 
 }
