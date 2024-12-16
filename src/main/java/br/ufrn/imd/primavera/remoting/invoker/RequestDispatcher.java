@@ -19,6 +19,10 @@ import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
 
+import br.ufrn.imd.primavera.exceptions.InterceptionException;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.Context;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.InterceptedRequest;
 import br.ufrn.imd.primavera.remoting.annotations.BodyParam;
 import br.ufrn.imd.primavera.remoting.annotations.Endpoint;
 import br.ufrn.imd.primavera.remoting.annotations.Handler;
@@ -37,7 +41,7 @@ import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 public class RequestDispatcher {
 	private static final Logger logger = LogManager.getLogger();
 	private static RequestDispatcher instance;
-
+	private InvocationInterceptorManager invocationInterceptorManager;
 	private Set<Method> methods;
 
 	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
@@ -46,6 +50,7 @@ public class RequestDispatcher {
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
 		this.invoker = Invoker.getInstance();
+		this.invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	}
 
 	public static synchronized RequestDispatcher getInstance() {
@@ -55,8 +60,8 @@ public class RequestDispatcher {
 		return instance;
 	}
 
-	public void loadMethods(String... packagesName) {
-		Reflections reflections = new Reflections(new ConfigurationBuilder().forPackages(packagesName)
+	public void loadMethods() {
+		Reflections reflections = new Reflections(new ConfigurationBuilder().forPackages("")
 				.addScanners(Scanners.TypesAnnotated, Scanners.MethodsAnnotated));
 
 		Set<Class<?>> handlerClasses = reflections.getTypesAnnotatedWith(Handler.class);
@@ -98,8 +103,8 @@ public class RequestDispatcher {
 		System.out.println();
 	}
 
-	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers)
-			throws InfrastructureErrorException, ApplicationLogicErrorException {
+	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers,
+			Context context) throws InfrastructureErrorException, ApplicationLogicErrorException {
 		for (Method method : methods) {
 			Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
 			Endpoint endpoint = method.getAnnotation(Endpoint.class);
@@ -124,17 +129,30 @@ public class RequestDispatcher {
 
 					Object handlerInstance = getHandlerInstance(method.getDeclaringClass());
 
-					Object deserializedBody = deserializeBodyIfRequired(method, body);
+					InterceptedRequest ir = new InterceptedRequest(body, headers, path, queryParams, context);
 
-					Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers,
-							deserializedBody);
+					invocationInterceptorManager.invokeBeforeInterceptors(ir);
 
-					return invoker.invoke(method, handlerInstance, args);
+					Object deserializedBody = deserializeBodyIfRequired(method, ir.getBody());
+
+					Object[] args = resolveMethodArguments(method, pathPattern, ir.getPath(), ir.getQueryParams(),
+							ir.getQueryParams(), deserializedBody);
+
+					Object result = invoker.invoke(method, handlerInstance, args);
+
+					return result;
 
 				} catch (InvocationTargetException | InstantiationException e) {
+
+					if (e.getCause() instanceof InterceptionException) {
+						return ((InterceptionException) e.getCause()).getResponse();
+					}
+					
 					throw new ApplicationLogicErrorException("Error in application logic", e.getCause());
 				} catch (IOException | IllegalAccessException | SerializationException e) {
 					throw new InfrastructureErrorException("Error accessing handler", e);
+				} catch (NoSuchMethodException e) {
+					logger.error("Error invoking interceptor method: " + e);
 				}
 			}
 		}
