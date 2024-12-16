@@ -144,9 +144,6 @@ public class RequestDispatcher {
 
 			if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
 				try {
-
-					Object handlerInstance = getHandlerInstance(method.getDeclaringClass());
-
 					InterceptedRequest ir = new InterceptedRequest(body, headers, path, queryParams, context);
 
 					invocationInterceptorManager.invokeBeforeInterceptors(ir);
@@ -156,7 +153,7 @@ public class RequestDispatcher {
 					Object[] args = resolveMethodArguments(method, pathPattern, ir.getPath(), ir.getQueryParams(),
 							ir.getQueryParams(), deserializedBody);
 
-					Object result = invoker.invoke(method, handlerInstance, args);
+					Object result = invoker.invoke(method, method.getDeclaringClass(), args);
 
 					return result;
 
