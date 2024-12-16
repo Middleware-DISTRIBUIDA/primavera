@@ -3,6 +3,7 @@ package br.ufrn.imd.primavera;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import br.ufrn.imd.primavera.configuration.PrimaveraApplication;
 import br.ufrn.imd.primavera.configuration.PrimaveraConfiguration;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
 import br.ufrn.imd.primavera.remoting.handlers.server.ServerHandler;
 import br.ufrn.imd.primavera.remoting.invoker.RequestDispatcher;
 
@@ -56,15 +58,20 @@ public class PrimaveraRunner implements Runnable {
 		return this;
 	}
 
-	public PrimaveraRunner configureControllers(String... packagesControllers) {
+	public PrimaveraRunner configureControllers() {
 
 		RequestDispatcher rd = RequestDispatcher.getInstance();
-		rd.loadMethods(packagesControllers);
+		rd.loadMethods();
 		rd.printMethods();
 
 		this.packageControllers.addAll(packageControllers);
 
 		return this;
+	}
+
+	private void configureInterceptors() {
+		InvocationInterceptorManager iim = InvocationInterceptorManager.getInstance();
+		iim.loadInterceptors();
 	}
 
 	public PrimaveraConfiguration getConfiguration() {
@@ -78,6 +85,27 @@ public class PrimaveraRunner implements Runnable {
 	@Override
 	public void run() {
 		ServerHandler sh = new ServerHandler(configuration);
-		sh.start();
+		try {
+			sh.start();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		} catch (NoSuchMethodException e) {
+			e.printStackTrace();
+		} catch (SecurityException e) {
+			e.printStackTrace();
+		}
 	}
+
+	public PrimaveraRunner build() {
+		configureInterceptors();
+		configureControllers();
+		return this;
+	}
+
 }
