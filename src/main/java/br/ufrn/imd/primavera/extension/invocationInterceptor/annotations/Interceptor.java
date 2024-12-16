@@ -9,6 +9,8 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface InvocationInterceptorClass {
-    InvocationType value();
+public @interface Interceptor {
+	InvocationType value();
+
+	int priority() default 0;
 }

@@ -1,17 +1,20 @@
 package br.ufrn.imd.primavera.extension.protocolPlugin.http;
 
-import br.ufrn.imd.primavera.extension.protocolPlugin.ProtocolPlugin;
-import br.ufrn.imd.primavera.remoting.handlers.server.message.HTTPMessageHandler;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import br.ufrn.imd.primavera.extension.protocolPlugin.Plugin;
+import br.ufrn.imd.primavera.extension.protocolPlugin.ProtocolPlugin;
+import br.ufrn.imd.primavera.remoting.handlers.server.message.HTTPMessageHandler;
+
+@Plugin(protocol = "HTTP")
 public class HTTPProtocolPlugin implements ProtocolPlugin {
     private static final Logger logger = LogManager.getLogger();
     private final int port;
@@ -19,6 +22,7 @@ public class HTTPProtocolPlugin implements ProtocolPlugin {
 
     public HTTPProtocolPlugin(int port) {
         this.port = port;
+        this.executorHandle = Executors.newVirtualThreadPerTaskExecutor();
     }
 
     @Override

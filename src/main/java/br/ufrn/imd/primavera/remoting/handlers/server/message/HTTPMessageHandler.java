@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.Context;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.InterceptedResponse;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.HTTPStatus;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
@@ -25,11 +28,14 @@ public final class HTTPMessageHandler extends MessageHandler {
 	private static final String CONTENT_TYPE_JSON = "Content-Type: application/json\r\n";
 	private static final String CONNECTION_CLOSE = "Connection: close\r\n";
 
+	private final InvocationInterceptorManager invocationInterceptorManager;
+
 	private final Socket socket;
 
 	public HTTPMessageHandler(String taskName, Socket socket) {
 		super(taskName);
 		this.socket = socket;
+		this.invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	}
 
 	@Override
@@ -37,8 +43,6 @@ public final class HTTPMessageHandler extends MessageHandler {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 			String verb;
 			String path;
-			String context = "";
-
 			try {
 				String headerLine = in.readLine();
 
@@ -57,14 +61,9 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			Map<String, String> headers = parseHeaders(in);
 
-			if(headers.containsKey("Context")) {
-				context = headers.get("Context");
-				headers.remove("Context");
-			}
-
 			String body = readBody(in, headers);
 
-			processRequest(verb, path, body, headers, context);
+			processRequest(verb, path, body, headers);
 
 		} catch (IOException e) {
 			logAndRespondError("IO Error handling request", HTTPStatus.INTERNAL_SERVER_ERROR);
@@ -73,13 +72,17 @@ public final class HTTPMessageHandler extends MessageHandler {
 		}
 	}
 
-	private void processRequest(String verb, String path, String body, Map<String, String> headers, String context) {
+	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-
+			
+			Context context = new Context();
+			
 			Response<Object> response = new Response<>();
+			
+			
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
-					.dispatchRequest(Verb.valueOf(verb), path, body, headers);
+					.dispatchRequest(Verb.valueOf(verb), path, body, headers, context);
 
 			Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
 
@@ -91,7 +94,13 @@ public final class HTTPMessageHandler extends MessageHandler {
 			Marshaller<String> m = (Marshaller<String>) MarshallerFactory.getMarshaller(MarshallerType.JSON);
 
 			String bodyResponse = m.marshal(response.getEntity());
-			sendResponse(response.getStatus(), bodyResponse, responseHeaders);
+
+			InterceptedResponse ir = new InterceptedResponse(bodyResponse, responseHeaders, path, response.getStatus(), context);
+
+			invocationInterceptorManager.invokeAfterInterceptors(ir);
+
+			sendResponse(ir.getStatus(), ir.getBody(), ir.getHeaders());
+
 		} catch (ApplicationLogicErrorException e) {
 			logger.warn("Application logic error: " + e.getMessage(), e);
 			logAndRespondError("Application logic error: " + e.getMessage(), HTTPStatus.BAD_REQUEST);
@@ -99,6 +108,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 			logger.error("Infrastructure error: " + e.getMessage(), e);
 			logAndRespondError("Infrastructure error: " + e.getMessage(), HTTPStatus.INTERNAL_SERVER_ERROR);
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.error("Unexpected error: " + e.getMessage(), e);
 			logAndRespondError("Unexpected error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
 		}
