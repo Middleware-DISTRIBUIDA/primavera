@@ -95,6 +95,7 @@ public class PrimaveraRunner implements Runnable {
 			e.printStackTrace();
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
+			System.exit(1);
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (NoSuchMethodException e) {

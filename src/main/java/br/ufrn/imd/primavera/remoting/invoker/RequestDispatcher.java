@@ -144,7 +144,7 @@ public class RequestDispatcher {
 				path = path.substring(1, path.length());
 			}
 
-	        Map<String, String> queryParams = getQueryParams(path);
+			Map<String, String> queryParams = getQueryParams(path);
 
 			if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
 				try {
@@ -172,17 +172,11 @@ public class RequestDispatcher {
 					throw new InfrastructureErrorException("Error accessing handler", e);
 				} catch (NoSuchMethodException e) {
 					logger.error("Error invoking interceptor method: " + e);
-				} finally {
-                    if (handlerInstance != null) {
-                        returnHandlerInstance(method.getDeclaringClass(), handlerInstance);
-                    }
-	            }
+				}
 			}
 		}
 		throw new InfrastructureErrorException("No matching endpoint found for " + httpMethod + " " + path);
 	}
-
-
 
 	private Object deserializeBodyIfRequired(Method method, String body) throws IOException, SerializationException {
 		int contFields = 0;
@@ -305,32 +299,22 @@ public class RequestDispatcher {
 	}
 
 	private Object getHandlerInstance(Class<?> handlerClass) {
-        // Recupera o pool de instâncias para o tipo específico
-        Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
+		// Recupera o pool de instâncias para o tipo específico
+		Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
 
-        synchronized (pool) {
-            if (!pool.isEmpty()) {
-                return pool.poll();
-            }
-        }
-        // Cria uma nova instância se o pool estiver vazio
-        try {
-            return handlerClass.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
-            return null;
-        }
-    }
-	
-	private void returnHandlerInstance(Class<?> handlerClass, Object handlerInstance) {
-        // Adiciona a instância de volta ao pool
-        Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
-
-        synchronized (pool) {
-            pool.offer(handlerInstance);
-        }
-    }
-
+		synchronized (pool) {
+			if (!pool.isEmpty()) {
+				return pool.poll();
+			}
+		}
+		// Cria uma nova instância se o pool estiver vazio
+		try {
+			return handlerClass.getDeclaredConstructor().newInstance();
+		} catch (Exception e) {
+			logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
+			return null;
+		}
+	}
 
 	private Map<String, String> getQueryParams(String url) {
 		Map<String, String> queryParams = new HashMap<>();
