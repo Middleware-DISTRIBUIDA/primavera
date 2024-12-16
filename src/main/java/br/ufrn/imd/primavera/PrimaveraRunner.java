@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
+import java.rmi.RemoteException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -58,10 +59,11 @@ public class PrimaveraRunner implements Runnable {
 		return this;
 	}
 
-	public PrimaveraRunner configureControllers() {
+	public PrimaveraRunner configureControllers()
+			throws RemoteException, InstantiationException, IllegalAccessException {
 
 		RequestDispatcher rd = RequestDispatcher.getInstance();
-		rd.loadMethods();
+		rd.loadMethods(configuration);
 		rd.printMethods();
 
 		this.packageControllers.addAll(packageControllers);
@@ -102,7 +104,7 @@ public class PrimaveraRunner implements Runnable {
 		}
 	}
 
-	public PrimaveraRunner build() {
+	public PrimaveraRunner build() throws RemoteException, InstantiationException, IllegalAccessException {
 		configureInterceptors();
 		configureControllers();
 		return this;
