@@ -139,7 +139,7 @@ public final class HTTPMessageHandler extends MessageHandler {
 				body.append(buffer);
 			}
 		} catch (IOException | NumberFormatException e) {
-			System.err.println("Error reading request body: " + e.getMessage());
+			
 		}
 		return body.toString();
 	}

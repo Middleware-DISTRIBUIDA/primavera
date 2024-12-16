@@ -30,6 +30,7 @@ public class ServerHandler {
 		}
 
 		if (plugin != null) {
+			System.out.println("INFO PLUGIN " + plugin.getClass().getName());
 			plugin.startServer();
 		} else {
 			throw new IllegalArgumentException("Unsupported protocol: " + configuration.getProtocol());

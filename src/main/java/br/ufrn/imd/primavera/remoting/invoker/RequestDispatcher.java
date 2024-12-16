@@ -7,8 +7,10 @@ import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,10 +52,12 @@ public class RequestDispatcher {
 	private ObjectIDRegistry objectsRegistry;
 	private LookupServiceImpl lookup;
 
+	private final Map<Class<?>, Queue<Object>> handlerPool; // Pool de instâncias de handlers
 	private final Invoker invoker;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
+		this.handlerPool = new HashMap<>();
 		this.invoker = Invoker.getInstance();
 		this.objectsRegistry = ObjectIDRegistry.getInstance();
 		try {
@@ -294,23 +298,18 @@ public class RequestDispatcher {
 		}
 	}
 
-	/*
-	 * private Object getHandlerInstance(Class<?> handlerClass) throws
-	 * InstantiationException, IllegalAccessException { return
-	 * sharedInstances.computeIfAbsent(handlerClass, clazz -> { try { return
-	 * clazz.getDeclaredConstructor().newInstance(); } catch (Exception e) {
-	 * logger.error("Failed to create handler instance for " +
-	 * handlerClass.getSimpleName(), e); return null; } }); }
-	 */
+	private Object getHandlerInstance(Class<?> handlerClass) {
+		// Recupera o pool de instâncias para o tipo específico
+		Queue<Object> pool = handlerPool.computeIfAbsent(handlerClass, k -> new LinkedList<>());
 
-	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
-		if (objectsRegistry.containsId(handlerClass)) {
-			return objectsRegistry.getId(handlerClass);
+		synchronized (pool) {
+			if (!pool.isEmpty()) {
+				return pool.poll();
+			}
 		}
+		// Cria uma nova instância se o pool estiver vazio
 		try {
-			Object newInstance = handlerClass.getDeclaredConstructor().newInstance();
-			objectsRegistry.addId(handlerClass, newInstance);
-			return newInstance;
+			return handlerClass.getDeclaredConstructor().newInstance();
 		} catch (Exception e) {
 			logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
 			return null;
