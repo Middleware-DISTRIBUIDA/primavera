@@ -8,52 +8,52 @@ import java.util.Set;
 import br.ufrn.imd.primavera.remoting.entities.ObjectID;
 
 public class ObjectIDRegistry {
-    private static ObjectIDRegistry instance;
-    private final Map<ObjectID, Object> instancesId;
-    private final Set<ObjectID> registeredIds;
+	private static ObjectIDRegistry instance;
+	private final Map<ObjectID, Object> instancesId;
+	private final Set<ObjectID> registeredIds;
 
-    private ObjectIDRegistry() {
-        this.instancesId = new HashMap<>();
-        this.registeredIds = new HashSet<>();
-    }
+	private ObjectIDRegistry() {
+		this.instancesId = new HashMap<>();
+		this.registeredIds = new HashSet<>();
+	}
 
-    public static synchronized ObjectIDRegistry getInstance() {
-        if (instance == null) {
-            instance = new ObjectIDRegistry();
-        }
-        return instance;
-    }
+	public static synchronized ObjectIDRegistry getInstance() {
+		if (instance == null) {
+			instance = new ObjectIDRegistry();
+		}
+		return instance;
+	}
 
-    public <T> void addId(Class<T> clazz, Object id) {
-        ObjectID objectId = new ObjectID(clazz);
-        if (instancesId.containsKey(objectId)) {
-            throw new IllegalArgumentException("A classe já possui um ID associado.");
-        }
-        instancesId.put(objectId, id);
-        registeredIds.add(objectId); // Adiciona à lista de IDs registrados
-    }
+	public <T> void addId(Class<T> clazz, Object id) {
+		ObjectID objectId = new ObjectID(clazz);
+		if (instancesId.containsKey(objectId)) {
+			throw new IllegalArgumentException("A classe já possui um ID associado.");
+		}
+		instancesId.put(objectId, id);
+		registeredIds.add(objectId);
+	}
 
-    public <T> Object getId(Class<T> clazz) {
-        return instancesId.get(new ObjectID(clazz)); // Retorna o ID diretamente do Map
-    }
+	public <T> Object getId(Class<T> clazz) {
+		return instancesId.get(new ObjectID(clazz));
+	}
 
-    public <T> boolean containsId(Class<T> clazz) {
-        return instancesId.containsKey(new ObjectID(clazz)); // Verifica se o Map contém a classe
-    }
+	public <T> boolean containsId(Class<T> clazz) {
+		return instancesId.containsKey(new ObjectID(clazz));
+	}
 
-    public boolean containsObjectID(ObjectID objectId) {
-        return registeredIds.contains(objectId); // Verifica no conjunto de IDs registrados
-    }
+	public boolean containsObjectID(ObjectID objectId) {
+		return registeredIds.contains(objectId);
+	}
 
-    public <T> boolean containsObjectID(Class<T> clazz) {
-        return registeredIds.contains(new ObjectID(clazz)); // Verifica se o ObjectID está registrado
-    } // Função para pegar ou criar um novo ObjectID se não estiver registrado
+	public <T> boolean containsObjectID(Class<T> clazz) {
+		return registeredIds.contains(new ObjectID(clazz));
+	}
 
-    public <T> ObjectID getOrCreateObjectID(Class<T> clazz) {
-        ObjectID objectId = new ObjectID(clazz);
-        if (!registeredIds.contains(objectId)) {
-            registeredIds.add(objectId); // Registra o novo ObjectID
-        }
-        return objectId; // Retorna o ObjectID registrado ou recém-criado
-    }
+	public <T> ObjectID getOrCreateObjectID(Class<T> clazz) {
+		ObjectID objectId = new ObjectID(clazz);
+		if (!registeredIds.contains(objectId)) {
+			registeredIds.add(objectId);
+		}
+		return objectId;
+	}
 }

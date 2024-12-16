@@ -50,12 +50,17 @@ public class RequestDispatcher {
 	private ObjectIDRegistry objectsRegistry;
 	private LookupServiceImpl lookup;
 
-	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
 	private final Invoker invoker;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
 		this.invoker = Invoker.getInstance();
+		this.objectsRegistry = ObjectIDRegistry.getInstance();
+		try {
+			this.lookup = LookupServiceImpl.getInstance();
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
 		this.invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	}
 
@@ -294,17 +299,11 @@ public class RequestDispatcher {
 
 	/*
 	 * private Object getHandlerInstance(Class<?> handlerClass) throws
-	 * InstantiationException, IllegalAccessException {
-	 * return sharedInstances.computeIfAbsent(handlerClass, clazz -> {
-	 * try {
-	 * return clazz.getDeclaredConstructor().newInstance();
-	 * } catch (Exception e) {
+	 * InstantiationException, IllegalAccessException { return
+	 * sharedInstances.computeIfAbsent(handlerClass, clazz -> { try { return
+	 * clazz.getDeclaredConstructor().newInstance(); } catch (Exception e) {
 	 * logger.error("Failed to create handler instance for " +
-	 * handlerClass.getSimpleName(), e);
-	 * return null;
-	 * }
-	 * });
-	 * }
+	 * handlerClass.getSimpleName(), e); return null; } }); }
 	 */
 
 	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
