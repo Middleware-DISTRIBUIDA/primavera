@@ -74,12 +74,11 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-			
+
 			Context context = new Context();
-			
+
 			Response<Object> response = new Response<>();
-			
-			
+
 			@SuppressWarnings("unchecked")
 			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
 					.dispatchRequest(Verb.valueOf(verb), path, body, headers, context);
@@ -95,7 +94,8 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 			String bodyResponse = m.marshal(response.getEntity());
 
-			InterceptedResponse ir = new InterceptedResponse(bodyResponse, responseHeaders, path, response.getStatus(), context);
+			InterceptedResponse ir = new InterceptedResponse(bodyResponse, responseHeaders, path, response.getStatus(),
+					context);
 
 			invocationInterceptorManager.invokeAfterInterceptors(ir);
 

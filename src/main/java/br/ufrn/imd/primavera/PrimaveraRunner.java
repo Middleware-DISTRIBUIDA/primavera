@@ -61,7 +61,7 @@ public class PrimaveraRunner implements Runnable {
 	public PrimaveraRunner configureControllers() {
 
 		RequestDispatcher rd = RequestDispatcher.getInstance();
-		rd.loadMethods();
+		rd.loadMethods(configuration);
 		rd.printMethods();
 
 		this.packageControllers.addAll(packageControllers);
