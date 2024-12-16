@@ -1,28 +1,26 @@
 package br.ufrn.imd.primavera.configuration;
 
-import br.ufrn.imd.primavera.configuration.network.Protocol;
-
 public class PrimaveraConfiguration {
-	private int port;
-	private Protocol protocol;
+	private Integer port;
+	private String protocol;
 
 	public PrimaveraConfiguration() {
 
 	}
 
-	public int getPort() {
+	public Integer getPort() {
 		return port;
 	}
 
-	public void setPort(int port) {
+	public void setPort(Integer port) {
 		this.port = port;
 	}
 
-	public Protocol getProtocol() {
+	public String getProtocol() {
 		return protocol;
 	}
 
-	public void setProtocol(Protocol protocol) {
+	public void setProtocol(String protocol) {
 		this.protocol = protocol;
 	}
 
@@ -40,7 +38,7 @@ public class PrimaveraConfiguration {
 	public static PrimaveraConfiguration getConfig() {
 		PrimaveraConfiguration config = new PrimaveraConfiguration();
 		config.setPort(8080);
-		config.setProtocol(Protocol.HTTP);
+		config.setProtocol("HTTP");
 		return config;
 	}
 }

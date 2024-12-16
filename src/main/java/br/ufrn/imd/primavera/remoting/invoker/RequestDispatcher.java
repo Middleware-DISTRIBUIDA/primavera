@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,7 +19,10 @@ import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ConfigurationBuilder;
 
-import br.ufrn.imd.primavera.configuration.PrimaveraConfiguration;
+import br.ufrn.imd.primavera.exceptions.InterceptionException;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.Context;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.InterceptedRequest;
 import br.ufrn.imd.primavera.remoting.annotations.BodyParam;
 import br.ufrn.imd.primavera.remoting.annotations.Endpoint;
 import br.ufrn.imd.primavera.remoting.annotations.Handler;
@@ -31,8 +33,6 @@ import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
 import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
-import br.ufrn.imd.primavera.remoting.identification.ObjectIDRegistry;
-import br.ufrn.imd.primavera.remoting.identification.impl.LookupServiceImpl;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.exceptions.SerializationException;
@@ -41,15 +41,16 @@ import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
 public class RequestDispatcher {
 	private static final Logger logger = LogManager.getLogger();
 	private static RequestDispatcher instance;
-
+	private InvocationInterceptorManager invocationInterceptorManager;
 	private Set<Method> methods;
-	private ObjectIDRegistry objectsRegistry;
+
+	private final Map<Class<?>, Object> sharedInstances = new HashMap<>();
 	private final Invoker invoker;
-	private LookupServiceImpl lookup;
 
 	private RequestDispatcher() {
 		this.methods = new HashSet<>();
 		this.invoker = Invoker.getInstance();
+		this.invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	}
 
 	public static synchronized RequestDispatcher getInstance() {
@@ -59,9 +60,8 @@ public class RequestDispatcher {
 		return instance;
 	}
 
-	public void loadMethods(PrimaveraConfiguration configuration, String... packagesName)
-			throws RemoteException, InstantiationException, IllegalAccessException {
-		Reflections reflections = new Reflections(new ConfigurationBuilder().forPackages(packagesName)
+	public void loadMethods() {
+		Reflections reflections = new Reflections(new ConfigurationBuilder().forPackages("")
 				.addScanners(Scanners.TypesAnnotated, Scanners.MethodsAnnotated));
 
 		Set<Class<?>> handlerClasses = reflections.getTypesAnnotatedWith(Handler.class);
@@ -69,13 +69,7 @@ public class RequestDispatcher {
 		this.methods = new HashSet<>();
 
 		for (Class<?> handlerClass : handlerClasses) {
-			Handler handlerAnnotation = handlerClass.getAnnotation(Handler.class);
-			String path = handlerAnnotation.basePath();
-			String protocol = configuration.getProtocol().toString();
-			int port = configuration.getPort();
-			lookup.registerObject(path, "localhost", port, handlerClass, getHandlerInstance(handlerClass));
 			for (Method method : handlerClass.getDeclaredMethods()) {
-
 				if (method.isAnnotationPresent(Endpoint.class)) {
 					validateReturnType(method);
 					this.methods.add(method);
@@ -109,8 +103,8 @@ public class RequestDispatcher {
 		System.out.println();
 	}
 
-	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers)
-			throws InfrastructureErrorException, ApplicationLogicErrorException {
+	public Object dispatchRequest(Verb httpMethod, String path, String body, Map<String, String> headers,
+			Context context) throws InfrastructureErrorException, ApplicationLogicErrorException {
 		for (Method method : methods) {
 			Handler handlerClass = method.getDeclaringClass().getAnnotation(Handler.class);
 			Endpoint endpoint = method.getAnnotation(Endpoint.class);
@@ -132,19 +126,33 @@ public class RequestDispatcher {
 
 			if (endpoint.method() == httpMethod && pathMatchesPattern(pathPattern, path)) {
 				try {
+
 					Object handlerInstance = getHandlerInstance(method.getDeclaringClass());
 
-					Object deserializedBody = deserializeBodyIfRequired(method, body);
+					InterceptedRequest ir = new InterceptedRequest(body, headers, path, queryParams, context);
 
-					Object[] args = resolveMethodArguments(method, pathPattern, path, queryParams, headers,
-							deserializedBody);
+					invocationInterceptorManager.invokeBeforeInterceptors(ir);
 
-					return invoker.invoke(method, handlerInstance, args);
+					Object deserializedBody = deserializeBodyIfRequired(method, ir.getBody());
+
+					Object[] args = resolveMethodArguments(method, pathPattern, ir.getPath(), ir.getQueryParams(),
+							ir.getQueryParams(), deserializedBody);
+
+					Object result = invoker.invoke(method, handlerInstance, args);
+
+					return result;
 
 				} catch (InvocationTargetException | InstantiationException e) {
+
+					if (e.getCause() instanceof InterceptionException) {
+						return ((InterceptionException) e.getCause()).getResponse();
+					}
+					
 					throw new ApplicationLogicErrorException("Error in application logic", e.getCause());
 				} catch (IOException | IllegalAccessException | SerializationException e) {
 					throw new InfrastructureErrorException("Error accessing handler", e);
+				} catch (NoSuchMethodException e) {
+					logger.error("Error invoking interceptor method: " + e);
 				}
 			}
 		}
@@ -272,17 +280,14 @@ public class RequestDispatcher {
 	}
 
 	private Object getHandlerInstance(Class<?> handlerClass) throws InstantiationException, IllegalAccessException {
-		if (objectsRegistry.containsId(handlerClass)) {
-			return objectsRegistry.getId(handlerClass);
-		}
-		try {
-			Object newInstance = handlerClass.getDeclaredConstructor().newInstance();
-			objectsRegistry.addId(handlerClass, newInstance);
-			return newInstance;
-		} catch (Exception e) {
-			logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
-			return null;
-		}
+		return sharedInstances.computeIfAbsent(handlerClass, clazz -> {
+			try {
+				return clazz.getDeclaredConstructor().newInstance();
+			} catch (Exception e) {
+				logger.error("Failed to create handler instance for " + handlerClass.getSimpleName(), e);
+				return null;
+			}
+		});
 	}
 
 	private Map<String, String> getQueryParams(String url) {

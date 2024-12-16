@@ -4,25 +4,20 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.net.Socket;
-import java.rmi.Naming;
-import java.rmi.NotBoundException;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import br.ufrn.imd.primavera.remoting.entities.AbsoluteObjectReference;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.InvocationInterceptorManager;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.Context;
+import br.ufrn.imd.primavera.extension.invocationInterceptor.entities.InterceptedResponse;
 import br.ufrn.imd.primavera.remoting.entities.ResponseWrapper;
 import br.ufrn.imd.primavera.remoting.enums.HTTPStatus;
 import br.ufrn.imd.primavera.remoting.enums.Verb;
 import br.ufrn.imd.primavera.remoting.exceptions.ApplicationLogicErrorException;
 import br.ufrn.imd.primavera.remoting.exceptions.InfrastructureErrorException;
 import br.ufrn.imd.primavera.remoting.handlers.server.Response;
-import br.ufrn.imd.primavera.remoting.identification.LookupService;
-import br.ufrn.imd.primavera.remoting.invoker.RequestDispatcher;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerFactory;
 import br.ufrn.imd.primavera.remoting.marshaller.MarshallerType;
 import br.ufrn.imd.primavera.remoting.marshaller.interfaces.Marshaller;
@@ -33,11 +28,14 @@ public final class HTTPMessageHandler extends MessageHandler {
 	private static final String CONTENT_TYPE_JSON = "Content-Type: application/json\r\n";
 	private static final String CONNECTION_CLOSE = "Connection: close\r\n";
 
+	private final InvocationInterceptorManager invocationInterceptorManager;
+
 	private final Socket socket;
 
 	public HTTPMessageHandler(String taskName, Socket socket) {
 		super(taskName);
 		this.socket = socket;
+		this.invocationInterceptorManager = InvocationInterceptorManager.getInstance();
 	}
 
 	@Override
@@ -45,7 +43,6 @@ public final class HTTPMessageHandler extends MessageHandler {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 			String verb;
 			String path;
-
 			try {
 				String headerLine = in.readLine();
 
@@ -77,62 +74,43 @@ public final class HTTPMessageHandler extends MessageHandler {
 
 	private void processRequest(String verb, String path, String body, Map<String, String> headers) {
 		try {
-			// Instancia o serviço de lookup
-			LookupService lookupService = (LookupService) Naming.lookup("//localhost/LookupService");
+			
+			Context context = new Context();
+			
+			Response<Object> response = new Response<>();
+			
+			
+			@SuppressWarnings("unchecked")
+			ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
+					.dispatchRequest(Verb.valueOf(verb), path, body, headers, context);
 
-			// Realiza o lookup do objeto remoto baseado no caminho (path)
-			AbsoluteObjectReference aor = lookupService.lookup(path);
+			Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
 
-			if (aor == null) {
-				// Caso o AOR não seja encontrado, retorna erro
-				sendErrorResponse(HTTPStatus.NOT_FOUND, "Objeto remoto não encontrado para o caminho: " + path);
-				return;
-			}
+			response.setCode(responseEntity.getStatus());
+			response.setMessage(responseEntity.getStatus().getReasonPhrase());
+			response.setEntity(responseEntity.getBody());
 
-			// Resolve o objeto remoto utilizando o ObjectID
-			Remote remoteObject = lookupService.resolveObject(aor.getObjectId());
-			if (remoteObject instanceof RequestDispatcher) {
-				RequestDispatcher requestDispatcher = (RequestDispatcher) remoteObject;
+			@SuppressWarnings("unchecked")
+			Marshaller<String> m = (Marshaller<String>) MarshallerFactory.getMarshaller(MarshallerType.JSON);
 
-				Response<Object> response = new Response<>();
+			String bodyResponse = m.marshal(response.getEntity());
 
-				@SuppressWarnings("unchecked")
-				ResponseWrapper<Object> responseEntity = (ResponseWrapper<Object>) requestDispatcher
-						.dispatchRequest(Verb.valueOf(verb), path, body, headers);
+			InterceptedResponse ir = new InterceptedResponse(bodyResponse, responseHeaders, path, response.getStatus(), context);
 
-				Map<String, String> responseHeaders = responseEntity.getHeaders().toMap();
+			invocationInterceptorManager.invokeAfterInterceptors(ir);
 
-				response.setCode(responseEntity.getStatus());
-				response.setMessage(responseEntity.getStatus().getReasonPhrase());
-				response.setEntity(responseEntity.getBody());
+			sendResponse(ir.getStatus(), ir.getBody(), ir.getHeaders());
 
-				@SuppressWarnings("unchecked")
-				Marshaller<String> m = (Marshaller<String>) MarshallerFactory.getMarshaller(MarshallerType.JSON);
-
-				String bodyResponse = m.marshal(response.getEntity());
-				sendResponse(response.getStatus(), bodyResponse, responseHeaders);
-			} else {
-				sendErrorResponse(HTTPStatus.BAD_REQUEST, "Objeto remoto não suporta a interface requerida.");
-			}
 		} catch (ApplicationLogicErrorException e) {
 			logger.warn("Application logic error: " + e.getMessage(), e);
 			logAndRespondError("Application logic error: " + e.getMessage(), HTTPStatus.BAD_REQUEST);
 		} catch (InfrastructureErrorException e) {
 			logger.error("Infrastructure error: " + e.getMessage(), e);
 			logAndRespondError("Infrastructure error: " + e.getMessage(), HTTPStatus.INTERNAL_SERVER_ERROR);
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-			logAndRespondError("URL malformada ao tentar acessar o serviço de lookup",
-					HTTPStatus.INTERNAL_SERVER_ERROR);
-		} catch (NotBoundException e) {
-			e.printStackTrace();
-			logAndRespondError("Serviço de lookup não encontrado no registro remoto", HTTPStatus.INTERNAL_SERVER_ERROR);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-			logAndRespondError("Erro remoto ao acessar o serviço de lookup", HTTPStatus.INTERNAL_SERVER_ERROR);
 		} catch (Exception e) {
 			e.printStackTrace();
-			logAndRespondError("Erro ao processar a requisição", HTTPStatus.INTERNAL_SERVER_ERROR);
+			logger.error("Unexpected error: " + e.getMessage(), e);
+			logAndRespondError("Unexpected error processing request", HTTPStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
